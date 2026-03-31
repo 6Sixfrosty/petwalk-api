@@ -108,7 +108,22 @@ app.post('/api/auth/logout', async (req, res) => {
         res.status(500).json({ erro: "Erro ao fazer logout.", detalhes: error.message });
     }
 });
+// 1.4 Buscar usuário por ID
+app.get('/api/usuarios/:id', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('usuarios')
+            .select('id, nome, email, telefone')
+            .eq('id', req.params.id)
+            .single();
 
+        if (error) throw error;
+
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ erro: error.message });
+    }
+});
 // ==========================================
 // 🐶 MÓDULO 2: PETS E EXPLORAÇÃO
 // ==========================================
