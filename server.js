@@ -199,14 +199,34 @@ app.get('/api/passeadores/online', async (req, res) => {
 // 3.1 Agendar Passeio (dono escolhe passeador + tipo)
 // tipo_passeio: 'agora' | 'agendado'
 app.post('/api/passeios', async (req, res) => {
-    const { dono_id, passeador_id, pet_id, data_horario, preco_total, tipo_passeio } = req.body;
+    const { dono_id, passeador_id, pet_id, data_horario, tipo_passeio, servico_minutos } = req.body;
 
     // Validação do tipo
     if (tipo_passeio !== 'agora' && tipo_passeio !== 'agendado') {
         return res.status(400).json({ erro: "tipo_passeio deve ser 'agora' ou 'agendado'." });
     }
 
+    // Validação do serviço
+    if (servico_minutos !== 30 && servico_minutos !== 60) {
+        return res.status(400).json({ erro: "Serviço deve ser 30 ou 60 minutos." });
+    }
+
     try {
+        //  Buscar preço do passeador
+        const { data: perfil, error: erroPerfil } = await supabase
+            .from('perfil_passeador')
+            .select('preco_30_min, preco_60_min')
+            .eq('id', passeador_id)
+            .single();
+
+        if (erroPerfil) throw erroPerfil;
+
+        //  Definir preço automaticamente
+        let preco_total = servico_minutos === 30
+            ? perfil.preco_30_min
+            : perfil.preco_60_min;
+
+        //  Inserir passeio
         const { data, error } = await supabase
             .from('passeios')
             .insert([{
@@ -216,12 +236,15 @@ app.post('/api/passeios', async (req, res) => {
                 status: 'pendente',
                 data_horario,
                 preco_total,
-                tipo_passeio
+                tipo_passeio,
+                servico_minutos
             }])
             .select();
 
         if (error) throw error;
+
         res.status(201).json(data[0]);
+
     } catch (error) {
         res.status(500).json({ erro: error.message });
     }
